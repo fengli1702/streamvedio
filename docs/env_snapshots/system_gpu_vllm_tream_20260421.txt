@@ -1,0 +1,71 @@
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+VERSION_ID="22.04"
+VERSION="22.04.5 LTS (Jammy Jellyfish)"
+VERSION_CODENAME=jammy
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=jammy
+
+Linux 007fdf5f3996 5.14.0-611.27.1.el9_7.x86_64 #1 SMP PREEMPT_DYNAMIC Tue Jan 20 05:28:20 EST 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+GPU 0: NVIDIA H200 (UUID: GPU-967cdcf6-43c4-c8ce-6c7a-d9cdbbd37d77)
+GPU 1: NVIDIA H200 (UUID: GPU-7302451d-9342-ea40-a113-3a4e0872aeca)
+GPU 2: NVIDIA H200 (UUID: GPU-a4c23cef-f2f2-4528-7092-11b569e23985)
+GPU 3: NVIDIA H200 (UUID: GPU-9c505405-1d92-eeca-909e-7ef684eb7196)
+GPU 4: NVIDIA H200 (UUID: GPU-051dc7a0-39ec-d7e5-55ce-fbd99802d713)
+GPU 5: NVIDIA H200 (UUID: GPU-6b9761c5-beeb-b620-45cf-7fef8ebc6aeb)
+GPU 6: NVIDIA H200 (UUID: GPU-b929d321-5037-cb9b-728a-d58621149726)
+GPU 7: NVIDIA H200 (UUID: GPU-9032fd52-bd9f-22c0-eea2-37c118ce21aa)
+
+Tue Apr 21 02:20:34 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 570.211.01             Driver Version: 570.211.01     CUDA Version: 12.9     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA H200                    Off |   00000000:03:00.0 Off |                    0 |
+| N/A   36C    P0             76W /  700W |       4MiB / 143771MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA H200                    Off |   00000000:23:00.0 Off |                    0 |
+| N/A   53C    P0            659W /  700W |  106674MiB / 143771MiB |     89%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   2  NVIDIA H200                    Off |   00000000:43:00.0 Off |                    0 |
+| N/A   27C    P0             74W /  700W |       0MiB / 143771MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   3  NVIDIA H200                    Off |   00000000:63:00.0 Off |                    0 |
+| N/A   25C    P0             74W /  700W |       0MiB / 143771MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   4  NVIDIA H200                    Off |   00000000:83:00.0 Off |                    0 |
+| N/A   29C    P0            130W /  700W |    1205MiB / 143771MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   5  NVIDIA H200                    Off |   00000000:A3:00.0 Off |                    0 |
+| N/A   29C    P0            137W /  700W |    1207MiB / 143771MiB |     11%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   6  NVIDIA H200                    Off |   00000000:C3:00.0 Off |                    0 |
+| N/A   27C    P0             73W /  700W |       4MiB / 143771MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   7  NVIDIA H200                    Off |   00000000:E3:00.0 Off |                    0 |
+| N/A   25C    P0             73W /  700W |       0MiB / 143771MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
++-----------------------------------------------------------------------------------------+

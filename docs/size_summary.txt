@@ -1,0 +1,4 @@
+512	/m-coriander/coriander/daifeng/release_packages/openbox_full_20260421_openbox_full/README.md
+4.5K	/m-coriander/coriander/daifeng/release_packages/openbox_full_20260421_openbox_full/tools
+6.5K	/m-coriander/coriander/daifeng/release_packages/openbox_full_20260421_openbox_full/docs
+30G	/m-coriander/coriander/daifeng/release_packages/openbox_full_20260421_openbox_full/workspace

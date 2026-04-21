@@ -1,0 +1,223 @@
+[
+    {
+        "Id": "007fdf5f3996f0924bb482f711d57aba43db835cc8c01a1673ab6104cf67aefd",
+        "Created": "2026-04-07T04:40:03.289985Z",
+        "Path": "sleep",
+        "Args": [
+            "infinity"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 744454,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-04-21T03:58:15.799078448Z",
+            "FinishedAt": "2026-04-21T03:58:15.534552808Z"
+        },
+        "Image": "sha256:4d3d79644f81db42a38f4e40dc86518ee449b328dcb0781e4c968e6ec4cdab23",
+        "ResolvConfPath": "/m-coriander/coriander/docker-files/containers/007fdf5f3996f0924bb482f711d57aba43db835cc8c01a1673ab6104cf67aefd/resolv.conf",
+        "HostnamePath": "/m-coriander/coriander/docker-files/containers/007fdf5f3996f0924bb482f711d57aba43db835cc8c01a1673ab6104cf67aefd/hostname",
+        "HostsPath": "/m-coriander/coriander/docker-files/containers/007fdf5f3996f0924bb482f711d57aba43db835cc8c01a1673ab6104cf67aefd/hosts",
+        "LogPath": "/m-coriander/coriander/docker-files/containers/007fdf5f3996f0924bb482f711d57aba43db835cc8c01a1673ab6104cf67aefd/007fdf5f3996f0924bb482f711d57aba43db835cc8c01a1673ab6104cf67aefd-json.log",
+        "Name": "/vllm-tream",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/m-coriander/coriander/daifeng/testvllm/vllm:/workspace/vllm"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "bridge",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "host",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "label=disable"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 1297950559436,
+            "NanoCpus": 230400000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": [
+                {
+                    "Driver": "",
+                    "Count": -1,
+                    "DeviceIDs": null,
+                    "Capabilities": [
+                        [
+                            "gpu"
+                        ]
+                    ],
+                    "Options": {}
+                }
+            ],
+            "MemoryReservation": 0,
+            "MemorySwap": 2595901118872,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": [
+                {
+                    "Name": "memlock",
+                    "Hard": -1,
+                    "Soft": -1
+                },
+                {
+                    "Name": "stack",
+                    "Hard": 67108864,
+                    "Soft": 67108864
+                }
+            ],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "ID": "007fdf5f3996f0924bb482f711d57aba43db835cc8c01a1673ab6104cf67aefd",
+                "LowerDir": "/m-coriander/coriander/docker-files/overlay2/6db38d9c11fc07b64904728d5bfc5bf557b4c8508fdc5369cb00e839f9754968-init/diff:/m-coriander/coriander/docker-files/overlay2/842ca38abf011256e819040cc8e352fb72d51bb94b375145fa242d05cca01291/diff",
+                "MergedDir": "/m-coriander/coriander/docker-files/overlay2/6db38d9c11fc07b64904728d5bfc5bf557b4c8508fdc5369cb00e839f9754968/merged",
+                "UpperDir": "/m-coriander/coriander/docker-files/overlay2/6db38d9c11fc07b64904728d5bfc5bf557b4c8508fdc5369cb00e839f9754968/diff",
+                "WorkDir": "/m-coriander/coriander/docker-files/overlay2/6db38d9c11fc07b64904728d5bfc5bf557b4c8508fdc5369cb00e839f9754968/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/m-coriander/coriander/daifeng/testvllm/vllm",
+                "Destination": "/workspace/vllm",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "007fdf5f3996",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": null,
+            "Cmd": [
+                "sleep",
+                "infinity"
+            ],
+            "Image": "vllm-tream-recover:20260209",
+            "Volumes": null,
+            "WorkingDir": "/workspace/vllm",
+            "Entrypoint": null,
+            "Labels": {
+                "owner": "daifeng"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "482cf83421c31602c72192d9ce571011e7cf795913fb87bc4f3ff062a755609d",
+            "SandboxKey": "/var/run/docker/netns/482cf83421c3",
+            "Ports": {},
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "54d7349b2e1b9973afdab8a1bfc5091278b8e2b904c58b020bdae5ed5f74f9da",
+                    "EndpointID": "361c6cd2b9e5683e897353ef65532e1281b090d6347eaf38d89b341717957a3f",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.5",
+                    "MacAddress": "4a:70:ad:86:25:36",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": null
+                }
+            }
+        }
+    }
+]
