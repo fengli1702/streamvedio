@@ -1,0 +1,160 @@
+{
+  "source": {
+    "train": "/workspace/vllm/SpecForge/datasets/lvm_stream_v1/train.jsonl",
+    "val": "/workspace/vllm/SpecForge/datasets/lvm_stream_v1/val.jsonl",
+    "eval100": "/workspace/vllm/SpecForge/datasets/lvm_stream_v1/val_sample_100.jsonl"
+  },
+  "target": {
+    "train": "/workspace/vllm/SpecForge/datasets/lvm_stream_v1_train30/train.jsonl",
+    "val": "/workspace/vllm/SpecForge/datasets/lvm_stream_v1_train30/val.jsonl",
+    "eval100": "/workspace/vllm/SpecForge/datasets/lvm_stream_v1_train30/val_sample_100.jsonl"
+  },
+  "rule": "per-sequence split with train_ratio=0.3 using sorted sample index",
+  "totals": {
+    "sequences": 25,
+    "train": 5950,
+    "val": 13875,
+    "all": 19825
+  },
+  "prefix_train": {
+    "DOH": 1190,
+    "Ego4d": 1190,
+    "UCF101": 1190,
+    "motsynth": 1190,
+    "visdrone": 1190
+  },
+  "prefix_val": {
+    "DOH": 2775,
+    "Ego4d": 2775,
+    "UCF101": 2775,
+    "motsynth": 2775,
+    "visdrone": 2775
+  },
+  "sequence_stats": {
+    "DOH_diy_782_-VJ7ONwQSxI": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "DOH_food_2084_0UXv-8NNvHA": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "DOH_furniture_1636__KhI6bpmMfM": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "DOH_gardening_802__ZLmNp1APL4": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "DOH_repair_2501__Bz-6CJM5rE": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "Ego4d_1c36b36d-8390-435c-bbf9-054e11534df8": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "Ego4d_3e08beb0-9108-4e77-b2ae-80f91ceac474": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "Ego4d_908f71c3-f1eb-4ef5-b530-4060cfaa60c0": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "Ego4d_ab9b7b7c-33ad-4358-929f-8b36b719f45f": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "Ego4d_c26cda75-ed47-4f46-9076-25cf75bf9f1d": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "UCF101_v_RockClimbingIndoor_g04_c03": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "UCF101_v_Rowing_g12_c07": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "UCF101_v_SoccerJuggling_g01_c01": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "UCF101_v_SoccerJuggling_g01_c03": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "UCF101_v_StillRings_g21_c05": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "motsynth_142": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "motsynth_376": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "motsynth_383": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "motsynth_415": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "motsynth_433": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "visdrone_uav0000099_02109_v": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "visdrone_uav0000233_01200_v": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "visdrone_uav0000273_00001_v": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "visdrone_uav0000278_00001_v": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    },
+    "visdrone_uav0000288_00001_v": {
+      "total": 793,
+      "train": 238,
+      "val": 555
+    }
+  }
+}
