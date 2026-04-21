@@ -1,0 +1,9 @@
+doh_cod_1.22_infer_only_c4_i4_ib2_tb8_lr2e-5_specoff: 4
+doh_cod_1.22_infer_only_c4_i4_ib16_tb8_lr2e-5_specoff: 3
+doh_cod_1.22_joint_c4_i4_ib8_tb2_lr2e-5_specon: 3
+doh_cod_1.22_train_only_c4_i4_ib8_tb16_lr2e-5_specoff: 3
+doh_cod_1.22_train_only_c4_i4_ib8_tb2_lr2e-5_specoff: 3
+doh_cod_1.22_infer_only_c4_i4_ib8_tb8_lr2e-5_specoff: 3
+doh_cod_1.22_train_only_c4_i4_ib8_tb8_lr2e-5_specoff: 3
+doh_cod_1.22_joint_c4_i4_ib2_tb2_lr2e-5_specoff: 2
+doh_cod_1.22_joint_c4_i4_ib2_tb8_lr2e-5_specoff: 2

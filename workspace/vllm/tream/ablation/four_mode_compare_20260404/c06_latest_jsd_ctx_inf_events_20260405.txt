@@ -1,0 +1,7 @@
+cold_start_terminated_step=15
+post_cold_start_pause_step=15
+first_jsd_probe_step=16
+first_enter_target_zone_step=7
+shock_t_low=0.2
+shock_t_high=0.35
+local_relax_drift_threshold=0.3

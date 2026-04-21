@@ -1,0 +1,9 @@
+generated_at=2026-02-19 04:15:24
+spec_count=198
+spec_metrics_count=198
+complete_ge3999=197
+incomplete_lt3999=1
+missing_metrics_pairs=0
+extra_metrics_pairs=0
+incomplete_files:
+doh_spec_static_a_2.05_c4_i2_ib8_tb8.jsonl	max_frame=63	lines=8	mtime=2026-02-18 13:29:04

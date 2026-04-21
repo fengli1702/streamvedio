@@ -1,0 +1,11 @@
+name: tream
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - cmake
+  - ninja
+  - git
+  - pip:
+      - -r requirements.lock

@@ -1,0 +1,34 @@
+new_file: /m-coriander/coriander/daifeng/testvllm/vllm/tream/inference_logs/scheduler_doh_shift_ab48x3_dyn_wb1b12j2_jsd1_cw15_C06_20260405_030756_wA_c8_i3_ib32_tb16.jsonl
+old_rebound_file: /m-coriander/coriander/daifeng/testvllm/vllm/tream/inference_logs/scheduler_doh_shift_ab48x3_dyn_wb1b12j2_jsd1td0_cw15_C06_20260330_021220_wC_c8_i3_ib32_tb16.jsonl
+steps_new: 41
+first_hit_target_max<=3: 7
+first_hit_(2,2): 8
+upward_rebound_after_(2,2): 0
+upward_rebound_steps_after_(2,2): []
+
+new decision counts:
+  shift|jsd_probe_commit: 12
+  shift|hold_anchor: 9
+  shift|seek_anchor: 7
+  shift|seek_anchor_hold: 6
+  shift|reroute_fallback_anchor_hold: 4
+  shift|warmup_hold_safe_default: 2
+  shift|post_cold_start_pause_hold: 1
+
+new phase counts:
+  SHOCK_LOCAL_REROUTE: 16
+  SEEK_ANCHOR: 13
+  HOLD_ANCHOR: 10
+  WARMUP: 2
+
+old rebound upward events listed in previous file: 10
+  s13: (2, 2)->(3, 2) | shift|salvage_local_recovery | shock=0.057 | jsd=0.347
+  s14: (3, 2)->(4, 2) | shift|seek_anchor | shock=0.030 | jsd=0.357
+  s15: (4, 2)->(6, 2) | shift|local_reroute_trial | shock=0.415 | jsd=0.505
+  s16: (6, 2)->(8, 2) | shift|local_reroute_trial | shock=0.003 | jsd=0.506
+  s18: (6, 2)->(8, 2) | shift|local_reroute_trial | shock=0.113 | jsd=0.398
+  s21: (6, 2)->(8, 2) | shift|local_reroute_trial | shock=0.372 | jsd=0.488
+  s23: (6, 2)->(8, 2) | shift|local_reroute_trial | shock=0.511 | jsd=0.510
+  s25: (6, 2)->(8, 2) | shift|local_reroute_trial | shock=0.154 | jsd=0.330
+  s34: (6, 2)->(8, 2) | shift|local_reroute_trial | shock=0.420 | jsd=0.324
+  s39: (6, 2)->(8, 2) | shift|local_reroute_trial | shock=0.383 | jsd=0.410

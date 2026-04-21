@@ -1,0 +1,7 @@
+python 3.11.14 (main, Oct 10 2025, 08:54:03) [GCC 11.4.0]
+platform Linux-5.14.0-611.27.1.el9_7.x86_64-x86_64-with-glibc2.35
+torch=2.9.0+cu128
+ray=2.52.1
+transformers=4.57.3
+vllm=0.11.2.dev201+g55c21c883.d20251220
+numpy=2.2.6

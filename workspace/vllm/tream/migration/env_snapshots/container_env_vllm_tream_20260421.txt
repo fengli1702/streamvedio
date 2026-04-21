@@ -1,0 +1,6 @@
+HOME=/root
+HOSTNAME=007fdf5f3996
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/workspace/vllm
+SHLVL=0
+_=/usr/bin/printenv
