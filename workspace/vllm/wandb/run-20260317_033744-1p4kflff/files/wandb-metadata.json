@@ -1,0 +1,86 @@
+{
+  "os": "Linux-5.14.0-611.27.1.el9_7.x86_64-x86_64-with-glibc2.35",
+  "python": "CPython 3.12.12",
+  "startedAt": "2026-03-17T03:37:44.446884Z",
+  "program": "<stdin>",
+  "git": {
+    "remote": "https://github.com/vllm-project/vllm.git"
+  },
+  "email": "fengli1702@gmail.com",
+  "root": "/workspace/vllm",
+  "host": "1573e8f9b00b",
+  "executable": "/usr/bin/python",
+  "cpu_count": 128,
+  "cpu_count_logical": 256,
+  "gpu": "NVIDIA H200",
+  "gpu_count": 8,
+  "disk": {
+    "/": {
+      "total": "39843243884544",
+      "used": "19152744218624"
+    }
+  },
+  "memory": {
+    "total": "1622438174720"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA H200",
+      "memoryTotal": "150754820096",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-967cdcf6-43c4-c8ce-6c7a-d9cdbbd37d77"
+    },
+    {
+      "name": "NVIDIA H200",
+      "memoryTotal": "150754820096",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-7302451d-9342-ea40-a113-3a4e0872aeca"
+    },
+    {
+      "name": "NVIDIA H200",
+      "memoryTotal": "150754820096",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-a4c23cef-f2f2-4528-7092-11b569e23985"
+    },
+    {
+      "name": "NVIDIA H200",
+      "memoryTotal": "150754820096",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-9c505405-1d92-eeca-909e-7ef684eb7196"
+    },
+    {
+      "name": "NVIDIA H200",
+      "memoryTotal": "150754820096",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-051dc7a0-39ec-d7e5-55ce-fbd99802d713"
+    },
+    {
+      "name": "NVIDIA H200",
+      "memoryTotal": "150754820096",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-6b9761c5-beeb-b620-45cf-7fef8ebc6aeb"
+    },
+    {
+      "name": "NVIDIA H200",
+      "memoryTotal": "150754820096",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-b929d321-5037-cb9b-728a-d58621149726"
+    },
+    {
+      "name": "NVIDIA H200",
+      "memoryTotal": "150754820096",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-9032fd52-bd9f-22c0-eea2-37c118ce21aa"
+    }
+  ],
+  "cudaVersion": "12.9",
+  "writerId": "b3u3anp5drcvez1o54mxko3reh4ekquh"
+}

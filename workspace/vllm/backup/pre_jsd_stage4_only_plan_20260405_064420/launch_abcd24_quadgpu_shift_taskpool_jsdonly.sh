@@ -1,0 +1,323 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TREAM_ROOT="${TREAM_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+cd "${TREAM_ROOT}"
+
+START_TS="$(date +%Y%m%d_%H%M%S)"
+RUN_ID="abc24x4_quadgpu_shift_taskpool_jsdonly_${START_TS}"
+LOG_DIR="${TREAM_ROOT}/inference_logs"
+MANIFEST="${LOG_DIR}/${RUN_ID}.tsv"
+STATUS_LOG="${LOG_DIR}/${RUN_ID}.status.log"
+LATEST_PTR="${LOG_DIR}/latest_abc24x4_quadgpu_shift_taskpool_jsdonly_run.txt"
+
+mkdir -p "${LOG_DIR}"
+echo "${RUN_ID}" > "${LATEST_PTR}"
+printf "run_name\tworker_lane\tcase_id\tgpu\tray_addr\tctx\tinf\tib\ttb\tdriver_log\tstatus\n" > "${MANIFEST}"
+echo "[$(date '+%F %T')] START ${RUN_ID}" | tee -a "${STATUS_LOG}"
+
+DATASET_DIR="${TREAM_ROOT}/data/streaming-lvm-dataset/DOH"
+MODEL_PATH="${TREAM_ROOT}/lvm-llama2-7b"
+SPEC_DRAFT_MODEL="../SpecForge/output/lvm_eagle3_lora_v1/epoch_0_step_3475"
+SPEC_VOCAB_MAPPING_PATH="vocab_mapping/bbea9992d144f6f64fd3cf54ec80f899.pt"
+MAX_FRAMES="${MAX_FRAMES:-4000}"
+IB="${IB:-32}"
+TB="${TB:-16}"
+GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.9}"
+RAY_NUM_CPUS="${RAY_NUM_CPUS:-16}"
+MAX_RETRIES_PER_CASE="${MAX_RETRIES_PER_CASE:-1}"
+
+# Default to typically idle GPUs.
+GPU_A="${GPU_A:-3}"
+GPU_B="${GPU_B:-4}"
+GPU_C="${GPU_C:-5}"
+GPU_D="${GPU_D:-6}"
+
+RAY_PORT_A="${RAY_PORT_A:-29521}"
+RAY_PORT_B="${RAY_PORT_B:-29522}"
+RAY_PORT_C="${RAY_PORT_C:-29523}"
+RAY_PORT_D="${RAY_PORT_D:-29524}"
+RAY_ADDR_A="127.0.0.1:${RAY_PORT_A}"
+RAY_ADDR_B="127.0.0.1:${RAY_PORT_B}"
+RAY_ADDR_C="127.0.0.1:${RAY_PORT_C}"
+RAY_ADDR_D="127.0.0.1:${RAY_PORT_D}"
+
+RAY_WORKER_MIN_A="${RAY_WORKER_MIN_A:-38000}"
+RAY_WORKER_MAX_A="${RAY_WORKER_MAX_A:-38999}"
+RAY_WORKER_MIN_B="${RAY_WORKER_MIN_B:-39000}"
+RAY_WORKER_MAX_B="${RAY_WORKER_MAX_B:-39999}"
+RAY_WORKER_MIN_C="${RAY_WORKER_MIN_C:-40000}"
+RAY_WORKER_MAX_C="${RAY_WORKER_MAX_C:-40999}"
+RAY_WORKER_MIN_D="${RAY_WORKER_MIN_D:-41000}"
+RAY_WORKER_MAX_D="${RAY_WORKER_MAX_D:-41999}"
+
+SHIFT_WARMUP_HOLD_WINDOWS="${SHIFT_WARMUP_HOLD_WINDOWS:-2}"
+SHIFT_COLD_START_WINDOWS="${SHIFT_COLD_START_WINDOWS:-12}"
+SHIFT_COLD_START_MAX_WINDOWS="${SHIFT_COLD_START_MAX_WINDOWS:-14}"
+SHIFT_COLD_PROBE_EVERY="${SHIFT_COLD_PROBE_EVERY:-1}"
+SHIFT_COLD_PROBE_EPS_FAST="${SHIFT_COLD_PROBE_EPS_FAST:-1}"
+SHIFT_COLD_PROBE_EPS_SLOW="${SHIFT_COLD_PROBE_EPS_SLOW:-0}"
+SHIFT_COLD_AVOID_TWO_CYCLE="${SHIFT_COLD_AVOID_TWO_CYCLE:-1}"
+SHIFT_COLD_PATIENCE_DIRECTIONS="${SHIFT_COLD_PATIENCE_DIRECTIONS:-3}"
+SHIFT_COLD_AXIS_ROTATION="${SHIFT_COLD_AXIS_ROTATION:-1}"
+SHIFT_COLD_I_MAJOR_SPAN="${SHIFT_COLD_I_MAJOR_SPAN:-6}"
+SHIFT_DEFAULT_QUALITY_MIN="${SHIFT_DEFAULT_QUALITY_MIN:-0.2}"
+SHIFT_COLD_RELAX_SAFETY="${SHIFT_COLD_RELAX_SAFETY:-0}"
+SHIFT_MIN_COUNT_FOR_TRUST="${SHIFT_MIN_COUNT_FOR_TRUST:-1}"
+SHIFT_ADAPT_PROBE_WINDOWS="${SHIFT_ADAPT_PROBE_WINDOWS:-3}"
+SHIFT_COLD_WHITELIST_BUDGET="${SHIFT_COLD_WHITELIST_BUDGET:-3}"
+SHIFT_COLD_WHITELIST_LAT_SLACK="${SHIFT_COLD_WHITELIST_LAT_SLACK:-0.08}"
+SHIFT_COLD_WHITELIST_Q_SLACK="${SHIFT_COLD_WHITELIST_Q_SLACK:-0.25}"
+SHIFT_COLD_WHITELIST_MAX_SWITCH="${SHIFT_COLD_WHITELIST_MAX_SWITCH:-1}"
+SHIFT_SEEK_EXIT_ANCHOR_CONFIDENCE="${SHIFT_SEEK_EXIT_ANCHOR_CONFIDENCE:-0.45}"
+SHIFT_SEEK_EXIT_MIN_PROBE_OBS="${SHIFT_SEEK_EXIT_MIN_PROBE_OBS:-2}"
+SHIFT_SEEK_EXIT_STABLE_WINDOWS="${SHIFT_SEEK_EXIT_STABLE_WINDOWS:-3}"
+SHIFT_SEEK_EXIT_STABLE_RADIUS="${SHIFT_SEEK_EXIT_STABLE_RADIUS:-1}"
+SHIFT_ANCHOR_BOOTSTRAP_WINDOWS="${SHIFT_ANCHOR_BOOTSTRAP_WINDOWS:-2}"
+SHIFT_ANCHOR_TRIAL_PROMOTE_WINDOWS="${SHIFT_ANCHOR_TRIAL_PROMOTE_WINDOWS:-2}"
+SHIFT_REROUTE_RADIUS="${SHIFT_REROUTE_RADIUS:-1}"
+SHIFT_STAB_ENABLE="${SHIFT_STAB_ENABLE:-1}"
+SHIFT_STAB_SHADOW="${SHIFT_STAB_SHADOW:-0}"
+SHIFT_STAB_SEEK_MONOTONE="${SHIFT_STAB_SEEK_MONOTONE:-1}"
+SHIFT_STAB_SEEK_MAX_INF_REBOUND="${SHIFT_STAB_SEEK_MAX_INF_REBOUND:-0}"
+SHIFT_STAB_LOW_SHOCK_MAX="${SHIFT_STAB_LOW_SHOCK_MAX:-0.35}"
+SCHEDULER_QUALITY_MIN="${SCHEDULER_QUALITY_MIN:-0.2}"
+
+SHIFT_SHOCK_USE_JSD_ONLY="${SHIFT_SHOCK_USE_JSD_ONLY:-1}"
+SHIFT_LOCAL_RELAX_ENABLE="${SHIFT_LOCAL_RELAX_ENABLE:-1}"
+SHIFT_LOCAL_RELAX_WINDOWS="${SHIFT_LOCAL_RELAX_WINDOWS:-4}"
+SHIFT_LOCAL_RELAX_RADIUS="${SHIFT_LOCAL_RELAX_RADIUS:-1}"
+SHIFT_LOCAL_RELAX_DRIFT_THRESHOLD="${SHIFT_LOCAL_RELAX_DRIFT_THRESHOLD:-0.30}"
+
+echo "[$(date '+%F %T')] PLAN total_cases=24 dispatch=fixed_balanced workers=4" | tee -a "${STATUS_LOG}"
+echo "[$(date '+%F %T')] GPU_INIT A=${GPU_A} B=${GPU_B} C=${GPU_C} D=${GPU_D}" | tee -a "${STATUS_LOG}"
+echo "[$(date '+%F %T')] SHIFT_KNOBS jsd_only=${SHIFT_SHOCK_USE_JSD_ONLY} local_relax=${SHIFT_LOCAL_RELAX_ENABLE}/${SHIFT_LOCAL_RELAX_WINDOWS}/r${SHIFT_LOCAL_RELAX_RADIUS}/th${SHIFT_LOCAL_RELAX_DRIFT_THRESHOLD}" | tee -a "${STATUS_LOG}"
+echo "[$(date '+%F %T')] SHIFT_FAST_CONVERGE warmup=${SHIFT_WARMUP_HOLD_WINDOWS} cold=${SHIFT_COLD_START_WINDOWS}/${SHIFT_COLD_START_MAX_WINDOWS} probe_eps=${SHIFT_COLD_PROBE_EPS_FAST} whitelist=${SHIFT_COLD_WHITELIST_BUDGET}@lat${SHIFT_COLD_WHITELIST_LAT_SLACK},q${SHIFT_COLD_WHITELIST_Q_SLACK},jump${SHIFT_COLD_WHITELIST_MAX_SWITCH} seek_exit=${SHIFT_SEEK_EXIT_ANCHOR_CONFIDENCE}/${SHIFT_SEEK_EXIT_MIN_PROBE_OBS},stable${SHIFT_SEEK_EXIT_STABLE_WINDOWS}@r${SHIFT_SEEK_EXIT_STABLE_RADIUS} stab=${SHIFT_STAB_ENABLE}/${SHIFT_STAB_SEEK_MONOTONE}" | tee -a "${STATUS_LOG}"
+echo "[$(date '+%F %T')] RETRY_KNOB max_retries_per_case=${MAX_RETRIES_PER_CASE}" | tee -a "${STATUS_LOG}"
+
+# 24 points without repetition, fixed 6 per lane.
+LANE_A_SPECS=(
+  "A01,1,1"
+  "A05,2,3"
+  "B03,4,4"
+  "B07,5,4"
+  "C03,2,8"
+  "C07,4,8"
+)
+LANE_B_SPECS=(
+  "A02,1,2"
+  "A06,3,2"
+  "B04,3,5"
+  "B08,5,5"
+  "C01,1,8"
+  "C08,8,4"
+)
+LANE_C_SPECS=(
+  "A03,2,1"
+  "A07,3,3"
+  "B01,3,4"
+  "B05,5,3"
+  "C02,8,1"
+  "C06,8,3"
+)
+LANE_D_SPECS=(
+  "A04,2,2"
+  "A08,2,4"
+  "B02,4,3"
+  "B06,4,5"
+  "C04,8,2"
+  "C05,3,8"
+)
+
+start_ray_head() {
+  local lane="$1"
+  local gpu="$2"
+  local ray_port="$3"
+  local min_worker="$4"
+  local max_worker="$5"
+  local dash_agent_port="$6"
+  local metrics_port="$7"
+  local runtime_env_port="$8"
+  local dash_port="$9"
+  local temp_dir="/tmp/ray_abc24x4_taskpool_${lane}_${START_TS}"
+
+  echo "[$(date '+%F %T')] RAY_START lane=${lane} gpu=${gpu} port=${ray_port}" | tee -a "${STATUS_LOG}"
+  CUDA_VISIBLE_DEVICES="${gpu}" ray start --head \
+    --port "${ray_port}" \
+    --num-cpus "${RAY_NUM_CPUS}" \
+    --num-gpus 1 \
+    --min-worker-port "${min_worker}" \
+    --max-worker-port "${max_worker}" \
+    --temp-dir "${temp_dir}" \
+    --include-dashboard=False \
+    --dashboard-port "${dash_port}" \
+    --dashboard-agent-listen-port "${dash_agent_port}" \
+    --metrics-export-port "${metrics_port}" \
+    --runtime-env-agent-port "${runtime_env_port}" \
+    --disable-usage-stats \
+    >> "${STATUS_LOG}" 2>&1
+}
+
+run_one() {
+  local worker_lane="$1"
+  local case_id="$2"
+  local gpu="$3"
+  local ray_addr="$4"
+  local ctx="$5"
+  local inf="$6"
+  local attempt="${7:-0}"
+
+  local retry_tag=""
+  if (( attempt > 0 )); then
+    retry_tag="_retry${attempt}"
+  fi
+  local run_name="doh_shift_abc24x4_${case_id}${retry_tag}_${START_TS}_w${worker_lane}_c${ctx}_i${inf}_ib${IB}_tb${TB}"
+  local driver_log="${LOG_DIR}/${run_name}.driver.log"
+
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+    "${run_name}" "${worker_lane}" "${case_id}" "${gpu}" "${ray_addr}" "${ctx}" "${inf}" "${IB}" "${TB}" "${driver_log}" "started" >> "${MANIFEST}"
+
+  echo "[$(date '+%F %T')] RUN ${run_name} worker=${worker_lane} case=${case_id} gpu=${gpu} ray=${ray_addr} attempt=${attempt}" | tee -a "${STATUS_LOG}"
+
+  if env -u RAY_ADDRESS \
+      PYTHONPATH="${TREAM_ROOT}/..:${PYTHONPATH:-}" \
+      TREAM_SHIFT_COLD_START_WINDOWS="${SHIFT_COLD_START_WINDOWS}" \
+      TREAM_SHIFT_COLD_START_MAX_WINDOWS="${SHIFT_COLD_START_MAX_WINDOWS}" \
+      TREAM_SHIFT_WARMUP_HOLD_WINDOWS="${SHIFT_WARMUP_HOLD_WINDOWS}" \
+      TREAM_SHIFT_COLD_PROBE_EVERY="${SHIFT_COLD_PROBE_EVERY}" \
+      TREAM_SHIFT_COLD_PROBE_EPS_FAST="${SHIFT_COLD_PROBE_EPS_FAST}" \
+      TREAM_SHIFT_COLD_PROBE_EPS_SLOW="${SHIFT_COLD_PROBE_EPS_SLOW}" \
+      TREAM_SHIFT_COLD_AVOID_TWO_CYCLE="${SHIFT_COLD_AVOID_TWO_CYCLE}" \
+      TREAM_SHIFT_COLD_PATIENCE_DIRECTIONS="${SHIFT_COLD_PATIENCE_DIRECTIONS}" \
+      TREAM_SHIFT_COLD_AXIS_ROTATION="${SHIFT_COLD_AXIS_ROTATION}" \
+      TREAM_SHIFT_COLD_I_MAJOR_SPAN="${SHIFT_COLD_I_MAJOR_SPAN}" \
+      TREAM_SHIFT_DEFAULT_QUALITY_MIN="${SHIFT_DEFAULT_QUALITY_MIN}" \
+      TREAM_SHIFT_COLD_RELAX_SAFETY="${SHIFT_COLD_RELAX_SAFETY}" \
+      TREAM_SHIFT_MIN_COUNT_FOR_TRUST="${SHIFT_MIN_COUNT_FOR_TRUST}" \
+      TREAM_SHIFT_ADAPT_PROBE_WINDOWS="${SHIFT_ADAPT_PROBE_WINDOWS}" \
+      TREAM_SHIFT_COLD_WHITELIST_BUDGET="${SHIFT_COLD_WHITELIST_BUDGET}" \
+      TREAM_SHIFT_COLD_WHITELIST_LAT_SLACK="${SHIFT_COLD_WHITELIST_LAT_SLACK}" \
+      TREAM_SHIFT_COLD_WHITELIST_Q_SLACK="${SHIFT_COLD_WHITELIST_Q_SLACK}" \
+      TREAM_SHIFT_COLD_WHITELIST_MAX_SWITCH="${SHIFT_COLD_WHITELIST_MAX_SWITCH}" \
+      TREAM_SHIFT_SEEK_EXIT_ANCHOR_CONFIDENCE="${SHIFT_SEEK_EXIT_ANCHOR_CONFIDENCE}" \
+      TREAM_SHIFT_SEEK_EXIT_MIN_PROBE_OBS="${SHIFT_SEEK_EXIT_MIN_PROBE_OBS}" \
+      TREAM_SHIFT_SEEK_EXIT_STABLE_WINDOWS="${SHIFT_SEEK_EXIT_STABLE_WINDOWS}" \
+      TREAM_SHIFT_SEEK_EXIT_STABLE_RADIUS="${SHIFT_SEEK_EXIT_STABLE_RADIUS}" \
+      TREAM_SHIFT_ANCHOR_BOOTSTRAP_WINDOWS="${SHIFT_ANCHOR_BOOTSTRAP_WINDOWS}" \
+      TREAM_SHIFT_ANCHOR_TRIAL_PROMOTE_WINDOWS="${SHIFT_ANCHOR_TRIAL_PROMOTE_WINDOWS}" \
+      TREAM_SHIFT_REROUTE_RADIUS="${SHIFT_REROUTE_RADIUS}" \
+      TREAM_SHIFT_STAB_ENABLE="${SHIFT_STAB_ENABLE}" \
+      TREAM_SHIFT_STAB_SHADOW="${SHIFT_STAB_SHADOW}" \
+      TREAM_SHIFT_STAB_SEEK_MONOTONE="${SHIFT_STAB_SEEK_MONOTONE}" \
+      TREAM_SHIFT_STAB_SEEK_MAX_INF_REBOUND="${SHIFT_STAB_SEEK_MAX_INF_REBOUND}" \
+      TREAM_SHIFT_STAB_LOW_SHOCK_MAX="${SHIFT_STAB_LOW_SHOCK_MAX}" \
+      TREAM_SHIFT_SHOCK_USE_JSD_ONLY="${SHIFT_SHOCK_USE_JSD_ONLY}" \
+      TREAM_SHIFT_LOCAL_RELAX_ENABLE="${SHIFT_LOCAL_RELAX_ENABLE}" \
+      TREAM_SHIFT_LOCAL_RELAX_WINDOWS="${SHIFT_LOCAL_RELAX_WINDOWS}" \
+      TREAM_SHIFT_LOCAL_RELAX_RADIUS="${SHIFT_LOCAL_RELAX_RADIUS}" \
+      TREAM_SHIFT_LOCAL_RELAX_DRIFT_THRESHOLD="${SHIFT_LOCAL_RELAX_DRIFT_THRESHOLD}" \
+      python "${TREAM_ROOT}/tream.py" \
+        --input_frames_path "${DATASET_DIR}" \
+        --context_length "${ctx}" \
+        --inference_length "${inf}" \
+        --inference_batch_size "${IB}" \
+        --training_batch_size "${TB}" \
+        --model_name "${MODEL_PATH}" \
+        --num_workers 1 \
+        --max_frames "${MAX_FRAMES}" \
+        --gpu_memory_utilization "${GPU_MEM_UTIL}" \
+        --max_loras 1 \
+        --scheduler_quality_min "${SCHEDULER_QUALITY_MIN}" \
+        --wandb_run_name "${run_name}" \
+        --inference_logs_dir "${LOG_DIR}" \
+        --ray_address "${ray_addr}" \
+        --ray_namespace "${run_name}" \
+        --ray_num_cpus "${RAY_NUM_CPUS}" \
+        --use_speculative_decoding \
+        --spec_draft_model "${SPEC_DRAFT_MODEL}" \
+        --spec_vocab_mapping_path "${SPEC_VOCAB_MAPPING_PATH}" \
+        --num_spec_tokens 3 \
+        --spec_disable_mqa_scorer \
+        -gc \
+        -train \
+        > "${driver_log}" 2>&1; then
+    echo "[$(date '+%F %T')] DONE ${run_name} rc=0" | tee -a "${STATUS_LOG}"
+    return 0
+  else
+    local rc=$?
+    echo "[$(date '+%F %T')] FAIL ${run_name} rc=${rc}" | tee -a "${STATUS_LOG}"
+    return "${rc}"
+  fi
+}
+
+lane_worker() {
+  local lane="$1"
+  local gpu="$2"
+  local ray_addr="$3"
+  shift 3
+  local specs=("$@")
+  local failures=0
+  local picked=0
+  local spec case_id ctx inf
+  local attempt
+
+  for spec in "${specs[@]}"; do
+    IFS=',' read -r case_id ctx inf <<< "${spec}"
+    picked=$((picked + 1))
+    echo "[$(date '+%F %T')] WORKER_PICK lane=${lane} case=${case_id} ctx=${ctx} inf=${inf}" | tee -a "${STATUS_LOG}"
+    attempt=0
+    while true; do
+      if run_one "${lane}" "${case_id}" "${gpu}" "${ray_addr}" "${ctx}" "${inf}" "${attempt}"; then
+        break
+      fi
+      if (( attempt >= MAX_RETRIES_PER_CASE )); then
+        failures=$((failures + 1))
+        break
+      fi
+      attempt=$((attempt + 1))
+      echo "[$(date '+%F %T')] RETRY lane=${lane} case=${case_id} attempt=${attempt}/${MAX_RETRIES_PER_CASE}" | tee -a "${STATUS_LOG}"
+    done
+  done
+
+  echo "[$(date '+%F %T')] WORKER_IDLE lane=${lane} picked=${picked} failures=${failures}" | tee -a "${STATUS_LOG}"
+  return "${failures}"
+}
+
+cleanup() {
+  echo "[$(date '+%F %T')] RAY_STOP_ALL" | tee -a "${STATUS_LOG}"
+  ray stop --force >> "${STATUS_LOG}" 2>&1 || true
+}
+trap cleanup EXIT
+
+ray stop --force >> "${STATUS_LOG}" 2>&1 || true
+start_ray_head "A" "${GPU_A}" "${RAY_PORT_A}" "${RAY_WORKER_MIN_A}" "${RAY_WORKER_MAX_A}" 55481 63241 60241 8661
+start_ray_head "B" "${GPU_B}" "${RAY_PORT_B}" "${RAY_WORKER_MIN_B}" "${RAY_WORKER_MAX_B}" 55482 63242 60242 8662
+start_ray_head "C" "${GPU_C}" "${RAY_PORT_C}" "${RAY_WORKER_MIN_C}" "${RAY_WORKER_MAX_C}" 55483 63243 60243 8663
+start_ray_head "D" "${GPU_D}" "${RAY_PORT_D}" "${RAY_WORKER_MIN_D}" "${RAY_WORKER_MAX_D}" 55484 63244 60244 8664
+
+lane_worker "A" "${GPU_A}" "${RAY_ADDR_A}" "${LANE_A_SPECS[@]}" &
+PID_A=$!
+lane_worker "B" "${GPU_B}" "${RAY_ADDR_B}" "${LANE_B_SPECS[@]}" &
+PID_B=$!
+lane_worker "C" "${GPU_C}" "${RAY_ADDR_C}" "${LANE_C_SPECS[@]}" &
+PID_C=$!
+lane_worker "D" "${GPU_D}" "${RAY_ADDR_D}" "${LANE_D_SPECS[@]}" &
+PID_D=$!
+
+wait "${PID_A}" || RC_A=$?
+RC_A=${RC_A:-0}
+wait "${PID_B}" || RC_B=$?
+RC_B=${RC_B:-0}
+wait "${PID_C}" || RC_C=$?
+RC_C=${RC_C:-0}
+wait "${PID_D}" || RC_D=$?
+RC_D=${RC_D:-0}
+
+TOTAL_FAIL=$((RC_A + RC_B + RC_C + RC_D))
+if (( TOTAL_FAIL == 0 )); then
+  echo "[$(date '+%F %T')] FINISH ${RUN_ID} all_success" | tee -a "${STATUS_LOG}"
+else
+  echo "[$(date '+%F %T')] FINISH ${RUN_ID} failures=${TOTAL_FAIL} (A=${RC_A}, B=${RC_B}, C=${RC_C}, D=${RC_D})" | tee -a "${STATUS_LOG}"
+fi
