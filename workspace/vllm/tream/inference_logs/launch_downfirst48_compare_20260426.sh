@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace/vllm/tream
+
+COMMON_TS="$(date +%Y%m%d_%H%M%S)"
+export RUN_MODE=dynamic
+export RUN_SPEC=1
+export DATASET_SUBDIR=DOH
+export MAX_FRAMES=4000
+export IB=32
+export TB=16
+export GPU_MEM_UTIL=0.9
+export RAY_NUM_CPUS=16
+export WORKER_LANES=3
+export GPU_A=5
+export GPU_B=6
+export GPU_C=7
+export RAY_PORT_A=32751
+export RAY_PORT_B=32752
+export RAY_PORT_C=32753
+export RAY_WORKER_MIN_A=57000
+export RAY_WORKER_MAX_A=57999
+export RAY_WORKER_MIN_B=58000
+export RAY_WORKER_MAX_B=58999
+export RAY_WORKER_MIN_C=60000
+export RAY_WORKER_MAX_C=60999
+export NO_GLOBAL_RAY_STOP=0
+export CASE_FILTER=
+
+# Exact validated 6-case parameter family from 20260425_155252/173832.
+export SHIFT_COLD_START_WINDOWS=15
+export SHIFT_COLD_START_MAX_WINDOWS=15
+export SHIFT_COLD_PROBE_EVERY=1
+export SHIFT_COLD_PROBE_EPS_FAST=2
+export SHIFT_COLD_PROBE_EPS_SLOW=0
+export SHIFT_COLD_AVOID_TWO_CYCLE=1
+export SHIFT_COLD_AXIS_ROTATION=1
+export SHIFT_COLD_PATIENCE_DIRECTIONS=8
+export SHIFT_DEFAULT_QUALITY_MIN=0.2
+export SHIFT_COLD_RELAX_SAFETY=1
+export SHIFT_COLD_POST_PAUSE_WINDOWS=1
+export SHIFT_MIN_COUNT_FOR_TRUST=1
+export SHIFT_ADAPT_PROBE_WINDOWS=0
+export SHIFT_COLD_WHITELIST_PROBE=1
+export SHIFT_COLD_WHITELIST_BUDGET=12
+export SHIFT_COLD_WHITELIST_LAT_SLACK=0.15
+export SHIFT_COLD_WHITELIST_Q_SLACK=0.60
+export SHIFT_COLD_WHITELIST_MAX_SWITCH=2
+export SHIFT_SHOCK_USE_JSD_ONLY=1
+export SHIFT_LOCAL_RELAX_ENABLE=1
+export SHIFT_LOCAL_RELAX_WINDOWS=3
+export SHIFT_LOCAL_RELAX_RADIUS=1
+export SHIFT_LOCAL_RELAX_Q_SLACK=0.05
+export SHIFT_LOCAL_RELAX_LAT_SLACK=0.08
+export SHIFT_LOCAL_RELAX_DRIFT_THRESHOLD=0.30
+export SHIFT_JSD_PROBE_ENABLE=1
+export SHIFT_JSD_PROBE_DOWN_FIRST=1
+export SHIFT_JSD_PROBE_DOWN_LAT_GAIN_EPS=0.03
+export SHIFT_JSD_PROBE_DOWN_Q_DROP_MAX=0.05
+export SHIFT_JSD_PROBE_CONTINUE_STEPS=0
+
+export SHIFT_PRE_JSD_CTX_MIN=2
+export SHIFT_PRE_JSD_INF_MIN=2
+export SHIFT_JSD_STAGE_CTX_MIN=1
+export SHIFT_JSD_STAGE_INF_MIN=1
+export SHIFT_CTX_MIN=
+export SHIFT_CTX_MAX=
+export SHIFT_INF_MIN=
+export SHIFT_INF_MAX=
+
+export SHIFT_COLD_DIRECTIONAL_ENABLE=0
+export SHIFT_COLD_PREFER_LARGE_DESCEND=0
+export SHIFT_COLD_PREFER_SMALL_ASCEND=0
+export SHIFT_COLD_SINGLE_AXIS_LOCK=0
+export SHIFT_COLD_EARLY_EXIT_ENABLE=0
+
+printf '[%s] BEGIN downfirst48 compare stamp=%s\n' "$(date '+%F %T')" "${COMMON_TS}"
+printf '[%s] PARAM_SOURCE nojsd=20260425_155252 jsd=20260425_173832 lg=0.03 qd=0.05 cont=0\n' "$(date '+%F %T')"
+
+printf '[%s] RUN Dyn(NoJSD) full48\n' "$(date '+%F %T')"
+export SHIFT_SHOCK_DISABLE_DRIFT=1
+bash inference_logs/launch_ab48_trigpu_shift_taskpool.sh
+
+printf '[%s] RUN Dyn+JSD down-first full48\n' "$(date '+%F %T')"
+export SHIFT_SHOCK_DISABLE_DRIFT=0
+bash inference_logs/launch_ab48_trigpu_shift_taskpool.sh
+
+printf '[%s] DONE downfirst48 compare stamp=%s\n' "$(date '+%F %T')" "${COMMON_TS}"

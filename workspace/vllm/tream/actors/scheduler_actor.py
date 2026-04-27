@@ -282,8 +282,37 @@ class SchedulerActor:
         self.sla_latency = float(target_latency)
         self.latency_margin = float(latency_margin)
         self.window_size = int(window_size)
-        self.context_bounds = (int(context_bounds[0]), int(context_bounds[1]))
-        self.inference_bounds = (int(inference_bounds[0]), int(inference_bounds[1]))
+        def _env_bound_pair(
+            base: Tuple[int, int],
+            min_keys: Tuple[str, ...],
+            max_keys: Tuple[str, ...],
+        ) -> Tuple[int, int]:
+            lo = int(base[0])
+            hi = int(base[1])
+            for key in min_keys:
+                raw = os.getenv(key, "").strip()
+                if raw:
+                    lo = int(raw)
+                    break
+            for key in max_keys:
+                raw = os.getenv(key, "").strip()
+                if raw:
+                    hi = int(raw)
+                    break
+            if hi < lo:
+                raise ValueError(f"invalid scheduler bounds: min={lo}, max={hi}")
+            return lo, hi
+
+        self.context_bounds = _env_bound_pair(
+            context_bounds,
+            ("TREAM_SHIFT_CTX_MIN", "TREAM_SHIFT_CONTEXT_MIN"),
+            ("TREAM_SHIFT_CTX_MAX", "TREAM_SHIFT_CONTEXT_MAX"),
+        )
+        self.inference_bounds = _env_bound_pair(
+            inference_bounds,
+            ("TREAM_SHIFT_INF_MIN", "TREAM_SHIFT_INFERENCE_MIN"),
+            ("TREAM_SHIFT_INF_MAX", "TREAM_SHIFT_INFERENCE_MAX"),
+        )
         self.bounds = np.array([self.context_bounds, self.inference_bounds], dtype=float)
 
         self.delta = float(delta)
@@ -612,6 +641,10 @@ class SchedulerActor:
         local_relax_drift_threshold = float(
             os.getenv("TREAM_SHIFT_LOCAL_RELAX_DRIFT_THRESHOLD", "0.30")
         )
+        pre_jsd_min_ctx = int(os.getenv("TREAM_SHIFT_PRE_JSD_CTX_MIN", "2"))
+        pre_jsd_min_inf = int(os.getenv("TREAM_SHIFT_PRE_JSD_INF_MIN", "2"))
+        jsd_stage_min_ctx = int(os.getenv("TREAM_SHIFT_JSD_STAGE_CTX_MIN", "1"))
+        jsd_stage_min_inf = int(os.getenv("TREAM_SHIFT_JSD_STAGE_INF_MIN", "1"))
         jsd_probe_enable = os.getenv("TREAM_SHIFT_JSD_PROBE_ENABLE", "1").strip().lower() not in (
             "0",
             "false",
@@ -646,6 +679,19 @@ class SchedulerActor:
         )
         jsd_probe_state_hold_windows = int(
             os.getenv("TREAM_SHIFT_JSD_PROBE_STATE_HOLD_WINDOWS", "3")
+        )
+        jsd_probe_down_first = os.getenv(
+            "TREAM_SHIFT_JSD_PROBE_DOWN_FIRST", "0"
+        ).strip().lower() not in (
+            "0",
+            "false",
+            "no",
+        )
+        jsd_probe_down_latency_gain_eps = float(
+            os.getenv("TREAM_SHIFT_JSD_PROBE_DOWN_LAT_GAIN_EPS", "0.03")
+        )
+        jsd_probe_down_quality_drop_max = float(
+            os.getenv("TREAM_SHIFT_JSD_PROBE_DOWN_Q_DROP_MAX", "0.05")
         )
 
         shock_w_drift = 1.0
@@ -705,6 +751,10 @@ class SchedulerActor:
             adapt_eps_slow=0,
             candidate_min_probe_keep=max(0, candidate_min_probe_keep),
             adapt_use_all_configs_if_small=True,
+            pre_jsd_min_ctx=max(1, int(pre_jsd_min_ctx)),
+            pre_jsd_min_inf=max(1, int(pre_jsd_min_inf)),
+            jsd_stage_min_ctx=max(1, int(jsd_stage_min_ctx)),
+            jsd_stage_min_inf=max(1, int(jsd_stage_min_inf)),
             preference=pref,
             switch_cost_lambda=0.2,
             dwell_steps=self.t_dwell,
@@ -798,6 +848,9 @@ class SchedulerActor:
             jsd_probe_axis_order=str(jsd_probe_axis_order),
             jsd_probe_continue_steps=max(0, int(jsd_probe_continue_steps)),
             jsd_probe_state_hold_windows=max(0, int(jsd_probe_state_hold_windows)),
+            jsd_probe_down_first=bool(jsd_probe_down_first),
+            jsd_probe_down_latency_gain_eps=max(0.0, float(jsd_probe_down_latency_gain_eps)),
+            jsd_probe_down_quality_drop_max=max(0.0, float(jsd_probe_down_quality_drop_max)),
         )
         self.shift_core = SchedulerCore(
             config_space=self.shift_config_space,
@@ -814,6 +867,7 @@ class SchedulerActor:
         print(
             "[Scheduler] scheduler_Shift core initialized with config "
             f"c={self.current_config_tuple[0]}, i={self.current_config_tuple[1]}, "
+            f"ctx_bounds={self.context_bounds}, inf_bounds={self.inference_bounds}, "
             f"sla={self.sla_latency}s, window={self.window_size}, "
             f"warmup={cfg_get('warmup_hold_windows')}, "
             f"warmup_explore={'on' if cfg_get('warmup_explore_enable', False) else 'off'}, "
@@ -846,6 +900,8 @@ class SchedulerActor:
             f"anchor_conf_decay={cfg_get('anchor_confidence_decay_hold_drift', 'na')}, "
             f"adapt_probe_windows={cfg_get('adapt_probe_windows')}, "
             f"shock_jsd_only={cfg_get('shock_use_jsd_only', False)}, "
+            f"pre_jsd_min=({cfg_get('pre_jsd_min_ctx', 'na')},{cfg_get('pre_jsd_min_inf', 'na')}), "
+            f"jsd_stage_min=({cfg_get('jsd_stage_min_ctx', 'na')},{cfg_get('jsd_stage_min_inf', 'na')}), "
             f"jsd_probe={cfg_get('jsd_local_probe_enable', False)}"
             f"/u{cfg_get('jsd_local_probe_up_max_step', 1)}"
             f"/d{cfg_get('jsd_local_probe_down_max_step', 2)}"
@@ -857,6 +913,9 @@ class SchedulerActor:
             f"/axis={cfg_get('jsd_probe_axis_order', 'ctx,inf')}"
             f"/cont{cfg_get('jsd_probe_continue_steps', 1)}"
             f"/hold{cfg_get('jsd_probe_state_hold_windows', 3)}, "
+            f"jsd_down_first={cfg_get('jsd_probe_down_first', False)}"
+            f"/lat_gain{cfg_get('jsd_probe_down_latency_gain_eps', 0.03)}"
+            f"/q_drop{cfg_get('jsd_probe_down_quality_drop_max', 0.05)}, "
             f"local_relax_enable={cfg_get('local_relax_enable', False)}, "
             f"local_relax_windows={cfg_get('local_relax_windows', 0)}, "
             f"local_relax_radius={cfg_get('local_relax_radius', 0)}, "

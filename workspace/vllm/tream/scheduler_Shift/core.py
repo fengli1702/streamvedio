@@ -67,6 +67,10 @@ class SchedulerConfig:
     )
     candidate_min_probe_keep: int = 2
     adapt_use_all_configs_if_small: bool = True
+    pre_jsd_min_ctx: int = 2
+    pre_jsd_min_inf: int = 2
+    jsd_stage_min_ctx: int = 1
+    jsd_stage_min_inf: int = 1
 
     # Policy
     preference: str = "quality"
@@ -179,6 +183,9 @@ class SchedulerConfig:
     jsd_probe_axis_order: str = "ctx,inf"
     jsd_probe_continue_steps: int = 1
     jsd_probe_state_hold_windows: int = 3
+    jsd_probe_down_first: bool = False
+    jsd_probe_down_latency_gain_eps: float = 0.03
+    jsd_probe_down_quality_drop_max: float = 0.05
 
 
 class SchedulerCore:
@@ -371,6 +378,13 @@ class SchedulerCore:
                 reroute_guard_hold=reroute_guard_hold,
             )
         )
+        jsd_stage_bounds_active = (
+            self.phase_machine.state.phase == Phase.SHOCK_LOCAL_REROUTE
+            and bool(local_relax_active)
+        )
+        stage_min_ctx, stage_min_inf = self._stage_lower_bounds(
+            jsd_stage_active=jsd_stage_bounds_active
+        )
 
         # 5) Candidate generation.
         anchors = self.anchors_by_regime.get(self.regime_id, [])
@@ -393,6 +407,12 @@ class SchedulerCore:
                 self.cfg.candidate_cap <= 0 or len(all_candidates) <= int(self.cfg.candidate_cap)
             ):
                 candidates = list(all_candidates)
+        candidates = self._filter_stage_lower_bounds(
+            candidates,
+            min_ctx=stage_min_ctx,
+            min_inf=stage_min_inf,
+            keep_prev=True,
+        )
 
         # 6) Safety filter.
         if cold_start_active and self.cfg.cold_start_relax_safety:
@@ -413,6 +433,12 @@ class SchedulerCore:
                     candidates=candidates,
                     margin_report=safe.margin_report,
                 )
+            safe_set = self._filter_stage_lower_bounds(
+                safe_set,
+                min_ctx=stage_min_ctx,
+                min_inf=stage_min_inf,
+                keep_prev=True,
+            )
 
         # 7) Pareto + anchors update (P_hat computed on trusted-recent points only).
         trusted_safe_set, trust_meta = self._trusted_subset(safe_set)
@@ -792,6 +818,9 @@ class SchedulerCore:
         decision.meta["local_relax_drift_threshold"] = float(max(0.0, self.cfg.local_relax_drift_threshold))
         decision.meta["local_relax_quality_slack"] = float(max(0.0, self.cfg.local_relax_quality_slack))
         decision.meta["local_relax_latency_slack"] = float(max(0.0, self.cfg.local_relax_latency_slack))
+        decision.meta["jsd_stage_bounds_active"] = 1.0 if jsd_stage_bounds_active else 0.0
+        decision.meta["stage_min_ctx"] = float(stage_min_ctx)
+        decision.meta["stage_min_inf"] = float(stage_min_inf)
         decision.meta["reroute_guard_hold"] = 1.0 if reroute_guard_hold else 0.0
         decision.meta["reroute_guard"] = self._reroute_guard_meta()
 
@@ -856,6 +885,45 @@ class SchedulerCore:
     def _contains_config(candidates: Sequence[ConfigX], target: ConfigX) -> bool:
         key = target.hash_key()
         return any(cfg.hash_key() == key for cfg in candidates)
+
+    def _stage_lower_bounds(self, *, jsd_stage_active: bool) -> Tuple[int, int]:
+        if bool(jsd_stage_active):
+            return (
+                max(1, int(getattr(self.cfg, "jsd_stage_min_ctx", 1))),
+                max(1, int(getattr(self.cfg, "jsd_stage_min_inf", 1))),
+            )
+        return (
+            max(1, int(getattr(self.cfg, "pre_jsd_min_ctx", 2))),
+            max(1, int(getattr(self.cfg, "pre_jsd_min_inf", 2))),
+        )
+
+    def _filter_stage_lower_bounds(
+        self,
+        candidates: Sequence[ConfigX],
+        *,
+        min_ctx: int,
+        min_inf: int,
+        keep_prev: bool,
+    ) -> List[ConfigX]:
+        min_ctx = max(1, int(min_ctx))
+        min_inf = max(1, int(min_inf))
+        out: List[ConfigX] = []
+        seen = set()
+        prev_key = self.x_prev.hash_key()
+        for cfg in candidates:
+            key = cfg.hash_key()
+            if key in seen:
+                continue
+            if int(cfg.ctx) >= min_ctx and int(cfg.inf) >= min_inf:
+                out.append(cfg)
+                seen.add(key)
+                continue
+            if bool(keep_prev) and key == prev_key:
+                out.append(cfg)
+                seen.add(key)
+        if not out:
+            out = [self.x_prev]
+        return out
 
     def _anchor_protected_pool(
         self,
@@ -1200,6 +1268,33 @@ class SchedulerCore:
         lat, acc = self._mu_pair(cfg, window)
         return float(self._preference_score(self.cfg.preference, lat, acc))
 
+    def _quality_constrained_latency_score(self, lat: float, quality: float) -> float:
+        """Latency-first score once quality clears tau; any quality deficit dominates."""
+        quality_deficit = 0.0
+        if self.cfg.tau is not None:
+            quality_deficit = max(0.0, float(self.cfg.tau) - float(quality))
+        return float(quality_deficit) * 1_000_000.0 + float(lat)
+
+    def _jsd_probe_window_score(self, window: WindowMetrics) -> float:
+        return float(
+            self._quality_constrained_latency_score(
+                float(window.lat_mean),
+                float(window.acc_mean),
+            )
+        )
+
+    def _estimated_jsd_probe_score(self, cfg: ConfigX, window: WindowMetrics) -> float:
+        lat, acc = self._mu_pair(cfg, window)
+        return float(self._quality_constrained_latency_score(lat, acc))
+
+    def _jsd_probe_window_observation(self, window: WindowMetrics) -> Tuple[float, float, float]:
+        lat = float(window.lat_mean)
+        quality = float(window.acc_mean)
+        return float(self._quality_constrained_latency_score(lat, quality)), lat, quality
+
+    def _jsd_probe_initial_stage(self) -> str:
+        return "probe_down" if bool(getattr(self.cfg, "jsd_probe_down_first", False)) else "probe_up"
+
     def _reset_jsd_probe_state(self, reason: str = "") -> None:
         self.jsd_probe_state = {}
         if reason:
@@ -1367,6 +1462,8 @@ class SchedulerCore:
         state: Dict[str, Any],
         next_base_cfg: ConfigX,
         next_base_score: float,
+        next_base_latency: Optional[float] = None,
+        next_base_quality: Optional[float] = None,
     ) -> None:
         axis_order = list(state.get("axis_order", self._jsd_probe_axis_order()))
         axis_idx = int(state.get("axis_idx", 0)) + 1
@@ -1375,13 +1472,19 @@ class SchedulerCore:
             return
         state["axis_idx"] = int(axis_idx)
         state["axis"] = str(axis_order[axis_idx])
-        state["stage"] = "probe_up"
+        state["stage"] = self._jsd_probe_initial_stage()
         state["base_cfg"] = next_base_cfg
         state["base_score"] = float(next_base_score)
+        state["base_latency"] = None if next_base_latency is None else float(next_base_latency)
+        state["base_quality"] = None if next_base_quality is None else float(next_base_quality)
         state["down_cfg"] = None
         state["down_score"] = None
+        state["down_latency"] = None
+        state["down_quality"] = None
         state["up_cfg"] = None
         state["up_score"] = None
+        state["up_latency"] = None
+        state["up_quality"] = None
         state["continue_dir"] = 0
         state["continue_remaining"] = 0
         state["continue_base_cfg"] = None
@@ -1399,17 +1502,38 @@ class SchedulerCore:
         if last is None:
             return
         reason = str(last.reason)
-        observed = self._window_objective_score(window)
+        observed, obs_latency, obs_quality = self._jsd_probe_window_observation(window)
         if reason == "jsd_probe_up":
             up_cfg = state.get("up_cfg")
             if isinstance(up_cfg, ConfigX) and up_cfg.hash_key() == last.x_next.hash_key():
                 state["up_score"] = float(observed)
-                state["stage"] = "probe_down"
+                state["up_latency"] = float(obs_latency)
+                state["up_quality"] = float(obs_quality)
+                state["stage"] = "probe_down" if not bool(state.get("down_first", False)) else "commit"
         elif reason == "jsd_probe_down":
             down_cfg = state.get("down_cfg")
             if isinstance(down_cfg, ConfigX) and down_cfg.hash_key() == last.x_next.hash_key():
                 state["down_score"] = float(observed)
-                state["stage"] = "commit"
+                state["down_latency"] = float(obs_latency)
+                state["down_quality"] = float(obs_quality)
+                if bool(state.get("down_first", False)):
+                    base_latency = state.get("base_latency")
+                    base_quality = state.get("base_quality")
+                    if isinstance(base_latency, (int, float)) and isinstance(base_quality, (int, float)):
+                        latency_gain = float(base_latency) - float(obs_latency)
+                        quality_drop = float(base_quality) - float(obs_quality)
+                        state["down_latency_gain"] = float(latency_gain)
+                        state["down_quality_drop"] = float(quality_drop)
+                        gain_eps = float(max(0.0, getattr(self.cfg, "jsd_probe_down_latency_gain_eps", 0.03)))
+                        q_drop_max = float(max(0.0, getattr(self.cfg, "jsd_probe_down_quality_drop_max", 0.05)))
+                        if latency_gain >= gain_eps:
+                            state["stage"] = "commit_down" if quality_drop <= q_drop_max else "commit_base"
+                        else:
+                            state["stage"] = "probe_up"
+                    else:
+                        state["stage"] = "probe_up"
+                else:
+                    state["stage"] = "commit"
         elif reason == "jsd_probe_continue":
             continue_cfg = state.get("continue_cfg")
             if isinstance(continue_cfg, ConfigX) and continue_cfg.hash_key() == last.x_next.hash_key():
@@ -1467,17 +1591,24 @@ class SchedulerCore:
             axis_order = self._jsd_probe_axis_order()
             state = {
                 "active": True,
-                "stage": "probe_up",
+                "stage": self._jsd_probe_initial_stage(),
+                "down_first": bool(getattr(self.cfg, "jsd_probe_down_first", False)),
                 "start_step": int(self.total_steps),
                 "axis_order": axis_order,
                 "axis_idx": 0,
                 "axis": str(axis_order[0]),
                 "base_cfg": self.x_prev,
-                "base_score": float(self._window_objective_score(window)),
+                "base_score": float(self._jsd_probe_window_score(window)),
+                "base_latency": float(window.lat_mean),
+                "base_quality": float(window.acc_mean),
                 "down_cfg": None,
                 "down_score": None,
+                "down_latency": None,
+                "down_quality": None,
                 "up_cfg": None,
                 "up_score": None,
+                "up_latency": None,
+                "up_quality": None,
                 "continue_dir": 0,
                 "continue_remaining": 0,
                 "continue_base_cfg": None,
@@ -1531,6 +1662,7 @@ class SchedulerCore:
                         "jsd_probe_stage": "probe_down",
                         "jsd_probe_axis": axis,
                         "jsd_probe_base_cfg": self._compact_cfg(base_cfg),
+                        "jsd_probe_down_first": bool(state.get("down_first", False)),
                     },
                 )
 
@@ -1557,6 +1689,7 @@ class SchedulerCore:
                         "jsd_probe_stage": "probe_up",
                         "jsd_probe_axis": axis,
                         "jsd_probe_base_cfg": self._compact_cfg(base_cfg),
+                        "jsd_probe_down_first": bool(state.get("down_first", False)),
                     },
                 )
 
@@ -1618,7 +1751,7 @@ class SchedulerCore:
                     score = (
                         float(continue_score)
                         if isinstance(continue_score, (int, float))
-                        else float(self._estimated_objective_score(continue_cfg, window))
+                        else float(self._estimated_jsd_probe_score(continue_cfg, window))
                     )
                     options.append((continue_cfg, score, "cont"))
                 if not options:
@@ -1626,7 +1759,7 @@ class SchedulerCore:
                     self._jsd_probe_advance_axis_or_finish(
                         state=state,
                         next_base_cfg=base_cfg,
-                        next_base_score=float(state.get("base_score", self._window_objective_score(window))),
+                        next_base_score=float(state.get("base_score", self._jsd_probe_window_score(window))),
                     )
                     return Decision(
                         x_next=base_cfg,
@@ -1669,14 +1802,72 @@ class SchedulerCore:
                     },
                 )
 
+            if stage in ("commit_base", "commit_down"):
+                if stage == "commit_down":
+                    best_cfg = state.get("down_cfg")
+                    best_score = state.get("down_score")
+                    best_latency = state.get("down_latency")
+                    best_quality = state.get("down_quality")
+                    pick = "down"
+                else:
+                    best_cfg = base_cfg
+                    best_score = state.get("base_score")
+                    best_latency = state.get("base_latency")
+                    best_quality = state.get("base_quality")
+                    pick = "base"
+                if not isinstance(best_cfg, ConfigX):
+                    self._reset_jsd_probe_state("invalid_direct_commit")
+                    return None
+                score = (
+                    float(best_score)
+                    if isinstance(best_score, (int, float))
+                    else float(self._estimated_jsd_probe_score(best_cfg, window))
+                )
+                self._jsd_probe_advance_axis_or_finish(
+                    state=state,
+                    next_base_cfg=best_cfg,
+                    next_base_score=float(score),
+                    next_base_latency=float(best_latency) if isinstance(best_latency, (int, float)) else None,
+                    next_base_quality=float(best_quality) if isinstance(best_quality, (int, float)) else None,
+                )
+                return Decision(
+                    x_next=best_cfg,
+                    reason="jsd_probe_commit",
+                    mode=self.mode,
+                    regime_id=self.regime_id,
+                    meta={
+                        "jsd_probe_stage": str(stage),
+                        "jsd_probe_axis": axis,
+                        "jsd_probe_pick": pick,
+                        "jsd_probe_best_score": float(score),
+                        "jsd_probe_down_first": bool(state.get("down_first", False)),
+                        "jsd_probe_down_latency_gain": float(state.get("down_latency_gain", 0.0)),
+                        "jsd_probe_down_quality_drop": float(state.get("down_quality_drop", 0.0)),
+                        "jsd_probe_down_latency_gain_eps": float(
+                            max(0.0, getattr(self.cfg, "jsd_probe_down_latency_gain_eps", 0.03))
+                        ),
+                        "jsd_probe_down_quality_drop_max": float(
+                            max(0.0, getattr(self.cfg, "jsd_probe_down_quality_drop_max", 0.05))
+                        ),
+                    },
+                )
+
             if stage != "commit":
                 self._reset_jsd_probe_state("invalid_stage")
                 return None
 
-            options: List[Tuple[ConfigX, float, str]] = []
+            options: List[Tuple[ConfigX, float, str, Optional[float], Optional[float]]] = []
             base_score = state.get("base_score")
             if isinstance(base_score, (int, float)):
-                options.append((base_cfg, float(base_score), "base"))
+                options.append(
+                    (
+                        base_cfg,
+                        float(base_score),
+                        "base",
+                        float(state["base_latency"]) if isinstance(state.get("base_latency"), (int, float)) else None,
+                        float(state["base_quality"]) if isinstance(state.get("base_quality"), (int, float)) else None,
+                    )
+                )
 
             down_cfg = state.get("down_cfg")
             down_score = state.get("down_score")
@@ -1684,9 +1875,17 @@ class SchedulerCore:
                 score = (
                     float(down_score)
                     if isinstance(down_score, (int, float))
-                    else float(self._estimated_objective_score(down_cfg, window))
+                    else float(self._estimated_jsd_probe_score(down_cfg, window))
                 )
-                options.append((down_cfg, score, "down"))
+                options.append(
+                    (
+                        down_cfg,
+                        score,
+                        "down",
+                        float(state["down_latency"]) if isinstance(state.get("down_latency"), (int, float)) else None,
+                        float(state["down_quality"]) if isinstance(state.get("down_quality"), (int, float)) else None,
+                    )
+                )
 
             up_cfg = state.get("up_cfg")
             up_score = state.get("up_score")
@@ -1694,15 +1893,26 @@ class SchedulerCore:
                 score = (
                     float(up_score)
                     if isinstance(up_score, (int, float))
-                    else float(self._estimated_objective_score(up_cfg, window))
+                    else float(self._estimated_jsd_probe_score(up_cfg, window))
                 )
-                options.append((up_cfg, score, "up"))
+                options.append(
+                    (
+                        up_cfg,
+                        score,
+                        "up",
+                        float(state["up_latency"]) if isinstance(state.get("up_latency"), (int, float)) else None,
+                        float(state["up_quality"]) if isinstance(state.get("up_quality"), (int, float)) else None,
+                    )
+                )
 
             if not options:
                 self._reset_jsd_probe_state("no_options")
                 return None
 
-            best_cfg, best_score, best_tag = min(options, key=lambda item: float(item[1]))
+            best_cfg, best_score, best_tag, best_latency, best_quality = min(
+                options,
+                key=lambda item: float(item[1]),
+            )
             best_dir = -1 if best_tag == "down" else (1 if best_tag == "up" else 0)
             continue_steps = max(0, int(getattr(self.cfg, "jsd_probe_continue_steps", 1)))
             if best_dir != 0 and continue_steps > 0:
@@ -1719,6 +1929,8 @@ class SchedulerCore:
                     state=state,
                     next_base_cfg=best_cfg,
                     next_base_score=float(best_score),
+                    next_base_latency=best_latency,
+                    next_base_quality=best_quality,
                 )
 
             return Decision(
@@ -1737,8 +1949,10 @@ class SchedulerCore:
                             "tag": tag,
                             "score": float(score),
                             "cfg": self._compact_cfg(cfg),
+                            "latency": float(lat) if isinstance(lat, (int, float)) else None,
+                            "quality": float(quality) if isinstance(quality, (int, float)) else None,
                         }
-                        for cfg, score, tag in options
+                        for cfg, score, tag, lat, quality in options
                     ],
                     "jsd_probe_invalidated_count": float(len(state.get("invalidated_keys", []))),
                 },
